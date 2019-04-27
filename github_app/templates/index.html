@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %} Фольклорный архив {% endblock %}
+{% block content %}
+<style>
+a{color: #008000;}
+div.main{
+	margin-left: 200px;
+	margin-top: 22px;
+	width: 67%
+}
+.text{
+	font-size: 18px;
+}
+.labels{
+	font-size: 25px;
+	font-weight: bold;
+}
+</style>
+<div class="main labels"> Search </div>
+<div class="main text">
+	<form action="{{prefix}}/entry" target="_blank">
+        <input type="text" id="word" name="word">
+        <input type="submit" value="search">
+    </form>
+</div>
+
+{% endblock %}
