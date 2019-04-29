@@ -1,6 +1,14 @@
 {% extends 'base.html' %}
 {% block title %} Фольклорный архив {% endblock %}
 {% block content %}
+    <script type="text/javascript">
+    $(document).ready(function(){
+     $('.spoiler_links').click(function(){
+      $(this).parent().children('div.spoiler_body').toggle('normal');
+      return false;
+     });
+    });
+</script>
 <style>
 a{color: #008000;}
 div.main{
@@ -17,86 +25,67 @@ div.main{
 }
 td, th{
     text-align: left;
-    padding: 8px;
+    padding: 2px;
 }
+tr.rel:nth-child(even) {background-color: #f2f2f2;}
+.spoiler_body {display:none; padding: 20px;}
+.spoiler_links {cursor:pointer;}
 </style>
 <div class="main text">
     {{ result['idx'].id }} {{ result['idx'].lemma }}
     <table>
         <tr>
-            <th>C</th>
-            <th>C#</th>
-            <th>C++</th>
-            <th>CSS</th>
-            <th>Go</th>
-            <th>HTML</th>
-            <th>Java</th>
-            <th>JavaScript</th>
-            <th>Objective-C</th>
-            <th>PHP</th>
-            <th>Python</th>
-            <th>Ruby</th>
-            <th>Shell</th>
-            <th>Swift</th>
-            <th>TypeScript</th>
-            <th>Other</th>
-            <th>Total</th>
+            <th> Language </th>
+            <th> TotalCount </th>
+            <th> IPM </th>
         </tr>
-        <tr>
-            <td>{{result['freq'].c}}</td>
-            <td>{{result['freq'].csh}}</td>
-            <td>{{result['freq'].cpp}}</td>
-            <td>{{result['freq'].css}}</td>
-            <td>{{result['freq'].go}}</td>
-            <td>{{result['freq'].html}}</td>
-            <td>{{result['freq'].java}}</td>
-            <td>{{result['freq'].javascript}}</td>
-            <td>{{result['freq'].objc}}</td>
-            <td>{{result['freq'].php}}</td>
-            <td>{{result['freq'].python}}</td>
-            <td>{{result['freq'].ruby}}</td>
-            <td>{{result['freq'].shell}}</td>
-            <td>{{result['freq'].swift}}</td>
-            <td>{{result['freq'].typescript}}</td>
-            <td>{{result['freq'].other}}</td>
-            <td>{{result['freq'].total}}</td>
-        </tr>
-        <tr>
-            <td>{{result['freq'].c / result['compare']['C']}}</td>
-            <td>{{result['freq'].csh / result['compare']['C']}}</td>
-            <td>{{result['freq'].cpp / result['compare']['C']}}</td>
-            <td>{{result['freq'].css / result['compare']['C']}}</td>
-            <td>{{result['freq'].go / result['compare']['C']}}</td>
-            <td>{{result['freq'].html / result['compare']['C']}}</td>
-            <td>{{result['freq'].java / result['compare']['C']}}</td>
-            <td>{{result['freq'].javascript / result['compare']['C']}}</td>
-            <td>{{result['freq'].objc / result['compare']['C']}}</td>
-            <td>{{result['freq'].php / result['compare']['C']}}</td>
-            <td>{{result['freq'].python / result['compare']['C']}}</td>
-            <td>{{result['freq'].ruby / result['compare']['C']}}</td>
-            <td>{{result['freq'].shell / result['compare']['C']}}</td>
-            <td>{{result['freq'].swift / result['compare']['C']}}</td>
-            <td>{{result['freq'].typescript / result['compare']['C']}}</td>
-            <td>{{result['freq'].other / result['compare']['C']}}</td>
-            <td>{{result['freq'].total / result['compare']['C']}}</td>
-        </tr>
-    </table>
-    <table>
-        <tr>
-            <th> Grammar </th>
-            <th> POS </th>
-            <th> Form </th>
-        </tr>
-        {%  for grammar in result['grammars'] %}
+        {% for item in result['freq']['languages'] %}
             <tr>
+                <td>{{ item[0] }}</td>
+                <td>{{ item[1] }}</td>
+                <td>{{ item[2] }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    {{ result['grammars'] }}
+    <br><br>
+    <table class="col-md-12">
+        <colgroup>
+            <col style="width:10%">
+            <col style="width:90%">
+        </colgroup>
+        <tr>
+            <th> POS </th>
+            <th> Usage </th>
+        </tr>
+        {% for pos in result['head'] if result['head'][pos]%}
+            <tr class="rel">
+                <td>{{ pos }}</td>
                 <td>
-                    {{ grammar[1] }}
-                </td>
-                <td>
-                    {{ grammar[2] }}
-                </td>
-                <td>
-                    {{ grammar[0].form}}
+                    <div class="row">
+                        <table class="col-md-12">
+                        <colgroup>
+                            <col style="width:10%">
+                            <col style="width:10%">
+                            <col style="width:80%">
+                        </colgroup>
+                            {% for relation in result['head'][pos] if result['head'][pos] %}
+                            <tr class="rel">
+                                <td>
+                                    {{ relation[0] }}
+                                </td>
+                                <td>
+                                    {{ relation[1] }}
+                                </td>
+                                <td>
+                                    {% for word in relation[2] %}
+                                        {{ word[0].form }}, {{ word[1] }};
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </table>
+                    </div>
                 </td>
             </tr>
         {% endfor %}

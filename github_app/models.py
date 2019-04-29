@@ -8,10 +8,9 @@ class Examples(db.Model):
     __tablename__ = 'examples'
     
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
-    text = db.Column('old_id', db.Text)
+    text = db.Column('text', db.Text)
     id_user = db.Column('id_user', db.Integer, db.ForeignKey('repos.id'))
     id_repo = db.Column('id_repo', db.Integer, db.ForeignKey('repos.gh_id'))
-    text = db.Column('old_id', db.Text)
 
 
 class Frequency(db.Model):
