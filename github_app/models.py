@@ -95,11 +95,19 @@ class Lemmas(db.Model):
 
 
 class RelationPairs(db.Model):
+    __tablename__ = 'aggr_rel_pairs'
+
+    id = db.Column('id', db.Integer,primary_key=True, autoincrement=True)
+    id_head = db.Column('id_head', db.Integer, back_populates="lemmas")
+    id_dependent = db.Column('id_dependent', db.Integer, back_populates="lemmas")
+    id_relation = db.Column('id_relation', db.Integer, back_populates="relations")
+    total_count = db.Column('total_count', db.Integer, back_populates="relations")
+
+
+class ExamplesBi(db.Model):
     __tablename__ = 'relation_pair'
 
     id = db.Column('id', db.Integer,primary_key=True, autoincrement=True)
-    id_head = db.Column('id_head', db.Integer, back_populates="lemma_grammar_pairs")
-    id_dependent = db.Column('id_dependent', db.Integer, back_populates="lemma_grammar_pairs")
     id_relation = db.Column('id_relation', db.Integer, back_populates="relations")
     id_example = db.Column('id_example', db.Integer, back_populates="examples")
     idx_diff = db.Column('idx_diff', db.Integer)

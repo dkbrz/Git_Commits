@@ -64,6 +64,7 @@ def add_prefix():
 def index():
     return render_template('index.html')
 
+
 @app.route("/entry", methods=['POST', 'GET'])
 def entry():
     result = None
@@ -73,16 +74,15 @@ def entry():
     return render_template('entry.html', result=result)
 
 
-def search2(word):
-    result = {}
-    result['idx'] = Lemmas.query.filter_by(lemma=word).one_or_none()
-    if result['idx']:
-        result['freq'] = Frequency.query.filter_by(id_lemma=result['idx'].id).one_or_none()
-        result['compare'] = {i.language_name: i.totalcount_unigrams for i in Languages.query.all()}
-        result['grammars'] = LGP.query.filter(LGP.id_lemma == result['idx'].id).join(Grammar, Grammar.id == LGP.id_grammar).add_columns(Grammar.string_format, Grammar.pos).all()
-        #print(dir(result['grammars']), len(result['grammars']))
-        print(result['grammars'])
-    return result
+@app.route("/clusters", methods=['POST', 'GET'])
+def clusters():
+    return render_template('clusters.html')
+
+
+@app.route("/freqdict", methods=['POST', 'GET'])
+def freqdict():
+    return render_template('freqdict.html')
+
 
 def search(word):
     result = {'freq':{}, 'grammars':[]}
@@ -139,15 +139,17 @@ def search(word):
         result['grammars'] = {
             key:
                 [
-                    {'grammar':grammars[i],
+                    {'grammar': grammars[i],
                      'lgf': grammar_idxs_full[grammar_idxs_id_lgp_reverse[i]]
                      }
-                    for i in pos[key]
+                    for i in sorted(pos[key],
+                                    key=lambda x: grammar_idxs_full[grammar_idxs_id_lgp_reverse[x]].totalcount,
+                                    reverse=True)
                 ]
-            for key in pos
+            for key in sorted(pos,
+                              key=lambda x: sum(grammar_idxs_full[grammar_idxs_id_lgp_reverse[k]].totalcount for k in pos[x]),
+                              reverse=True)
         }
-        #print(result['grammars'])
-        # grammars = ''
 
         head_rel = {
             pos: RelationPairs.query.filter(RelationPairs.id_head.in_(
@@ -158,45 +160,98 @@ def search(word):
         #print('head_rel |||', head_rel)
         relations = {
             pos: head_rel[pos].with_entities(
-            RelationPairs.id_relation,
-            func.count(RelationPairs.id_relation)
-        ).group_by(
-            RelationPairs.id_relation
-        ).having(
-            func.count(RelationPairs.id_relation) > 100
-        ).order_by(
-            desc(func.count(RelationPairs.id_relation))
-        ).all()
-        for pos in head_rel
-        }
-        #print('relations |||', relations)
-        head_res = {
-            pos: [
-                [
-                    RELATIONS[i[0]],
-                     i[1],
-                     [
-                        (LGP.query.filter_by(id=j[0]).one_or_none(), j[2])
-                        for j in head_rel[pos].filter_by(
-                                     id_relation=i[0]
-                                ).with_entities(
-                                    RelationPairs.id_dependent,
-                                    RelationPairs.id_relation,
-                                    func.count(RelationPairs.id_relation)
-                                ).group_by(
-                                 RelationPairs.id_dependent, RelationPairs.id_relation
-                                ).having(
-                                    func.count(RelationPairs.id_relation) > 25
-                                ).order_by(
-                                    desc(func.count(RelationPairs.id_relation))
-                                ).limit(25).all()
-                    ]
-                ]
-                for i in relations[pos]
-            ]
+                RelationPairs.id_relation,
+                    func.sum(RelationPairs.total_count)
+                ).group_by(
+                    RelationPairs.id_relation
+                ).having(
+                    func.sum(RelationPairs.total_count) > 100
+                ).order_by(
+                    desc(func.sum(RelationPairs.total_count))
+                ).all()
             for pos in head_rel
         }
+        #print('relations |||', relations)
+        head_res = [
+            [pos,
+                [
+                    [
+                        RELATIONS[i[0]],
+                         i[1],
+                         [
+                            (Lemmas.query.filter_by(id=j[0]).one_or_none(), j[2])
+                            for j in head_rel[pos].filter_by(
+                                         id_relation=i[0]
+                                    ).with_entities(
+                                        RelationPairs.id_dependent,
+                                        RelationPairs.id_relation,
+                                        func.sum(RelationPairs.total_count)
+                                    ).group_by(
+                                     RelationPairs.id_dependent, RelationPairs.id_relation
+                                    ).having(
+                                        func.sum(RelationPairs.total_count) > 25
+                                    ).order_by(
+                                        desc(func.sum(RelationPairs.total_count))
+                                    ).limit(25).all()
+                        ]
+                    ]
+                    for i in relations[pos]
+                ]
+            ]
+            for pos in sorted(relations, key=lambda x: sum(item[1] for item in relations[x]), reverse=True)
+        ]
         #print(head_res)
         result['head'] = head_res
 
+        dep_rel = {
+            pos: RelationPairs.query.filter(RelationPairs.id_dependent.in_(
+                [i['lgf'].id for i in result['grammars'][pos]])
+            ).with_entities(RelationPairs.id_dependent, RelationPairs.id_relation, RelationPairs.id_head)
+            for pos in result['grammars']
+        }
+        # print('head_rel |||', head_rel)
+        relations = {
+            pos: dep_rel[pos].with_entities(
+                RelationPairs.id_relation,
+                func.sum(RelationPairs.total_count)
+            ).group_by(
+                RelationPairs.id_relation
+            ).having(
+                func.sum(RelationPairs.total_count) > 100
+            ).order_by(
+                desc(func.sum(RelationPairs.total_count))
+            ).all()
+            for pos in dep_rel
+        }
+        # print('relations |||', relations)
+        dep_res = [
+            [pos,
+             [
+                 [
+                     RELATIONS[i[0]],
+                     i[1],
+                     [
+                         (Lemmas.query.filter_by(id=j[0]).one_or_none(), j[2])
+                         for j in dep_rel[pos].filter_by(
+                         id_relation=i[0]
+                     ).with_entities(
+                         RelationPairs.id_head,
+                         RelationPairs.id_relation,
+                         func.sum(RelationPairs.total_count)
+                     ).group_by(
+                         RelationPairs.id_head, RelationPairs.id_relation
+                     ).having(
+                         func.sum(RelationPairs.total_count) > 25
+                     ).order_by(
+                         desc(func.sum(RelationPairs.total_count))
+                     ).limit(25).all()
+                     ]
+                 ]
+                 for i in relations[pos]
+             ]
+             ]
+            for pos in sorted(relations, key=lambda x: sum(item[1] for item in relations[x]), reverse=True)
+        ]
+        # print(head_res)
+        result['dep'] = dep_res
     return result

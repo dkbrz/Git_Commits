@@ -47,7 +47,23 @@ tr.rel:nth-child(even) {background-color: #f2f2f2;}
             </tr>
         {% endfor %}
     </table>
-    {{ result['grammars'] }}
+    <br><br>
+    <table>
+        <tr>
+            <th>POS</th>
+            <th>Grammar</th>
+        </tr>
+        {% for pos in result['grammars'] %}
+            <tr>
+                <td>{{ pos }}</td>
+                <td>
+                    {% for item in result['grammars'][pos] %}
+                        {{ item['grammar'].string_format }}, {{ item['lgf'].totalcount }} <br>
+                    {% endfor %}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
     <br><br>
     <table class="col-md-12">
         <colgroup>
@@ -58,9 +74,9 @@ tr.rel:nth-child(even) {background-color: #f2f2f2;}
             <th> POS </th>
             <th> Usage </th>
         </tr>
-        {% for pos in result['head'] if result['head'][pos]%}
+        {% for pos_block in result['head'] if pos_block %}
             <tr class="rel">
-                <td>{{ pos }}</td>
+                <td>{{ pos_block[0] }}</td>
                 <td>
                     <div class="row">
                         <table class="col-md-12">
@@ -69,7 +85,7 @@ tr.rel:nth-child(even) {background-color: #f2f2f2;}
                             <col style="width:10%">
                             <col style="width:80%">
                         </colgroup>
-                            {% for relation in result['head'][pos] if result['head'][pos] %}
+                            {% for relation in pos_block[1] if relation %}
                             <tr class="rel">
                                 <td>
                                     {{ relation[0] }}
@@ -79,7 +95,49 @@ tr.rel:nth-child(even) {background-color: #f2f2f2;}
                                 </td>
                                 <td>
                                     {% for word in relation[2] %}
-                                        {{ word[0].form }}, {{ word[1] }};
+                                        {{ word[0].lemma }}, {{ word[1] }};
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    <br><br>
+    <table class="col-md-12">
+        <colgroup>
+            <col style="width:10%">
+            <col style="width:90%">
+        </colgroup>
+        <tr>
+            <th> POS </th>
+            <th> Usage </th>
+        </tr>
+        {% for pos_block in result['dep'] if pos_block %}
+            <tr class="rel">
+                <td>{{ pos_block[0] }}</td>
+                <td>
+                    <div class="row">
+                        <table class="col-md-12">
+                        <colgroup>
+                            <col style="width:10%">
+                            <col style="width:10%">
+                            <col style="width:80%">
+                        </colgroup>
+                            {% for relation in pos_block[1] if relation %}
+                            <tr class="rel">
+                                <td>
+                                    {{ relation[0] }}
+                                </td>
+                                <td>
+                                    {{ relation[1] }}
+                                </td>
+                                <td>
+                                    {% for word in relation[2] %}
+                                        {{ word[0].lemma }}, {{ word[1] }};
                                     {% endfor %}
                                 </td>
                             </tr>
