@@ -22,9 +22,11 @@ from flask import Flask, Response
 from flask import render_template, request, redirect, url_for
 
 from github_app.models import *
-from github_app.settings import APP_ROOT, CONFIG, LINK_PREFIX
+from github_app.settings import APP_ROOT, CONFIG, LINK_PREFIX, W2V
 
-
+import numpy as np
+import scipy.stats as st
+from gensim.models import KeyedVectors
 
 DB = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(CONFIG['USER'], CONFIG['PASSWORD'],
                                              CONFIG['HOST'], CONFIG['PORT'], CONFIG['DATABASE'])
@@ -46,6 +48,8 @@ app = create_app()
 # app.route = prefix_route(app.route, '/foklore/')
 # db.create_all()
 # app.app_context().push()
+w2v = KeyedVectors.load_word2vec_format(W2V)
+
 
 RELATIONS = {1: 'acl', 2: 'acl:relcl', 3: 'advcl', 4: 'advmod', 5: 'amod', 6: 'appos', 7: 'aux', 8: 'aux:pass',
              9: 'case', 10: 'cc', 11: 'cc:preconj', 12: 'ccomp', 13: 'compound', 14: 'compound:prt', 15: 'conj',
@@ -86,6 +90,8 @@ def freqdict():
 
 def search(word):
     result = {'freq':{}, 'grammars':[]}
+    if word in w2v:
+        result['neighbours'] = [(Lemmas.query.filter_by(lemma=w).one_or_none(), score) for w, score in w2v.most_similar(word, topn=20)]
     result['idx'] = Lemmas.query.filter_by(lemma=word).one_or_none()
     if result['idx']:
         # ----------------- frequency --------------------------------------------------
@@ -109,7 +115,9 @@ def search(word):
             ('TypeScript', freq.typescript, freq.typescript/compare['TypeScript']*1000000),
             ('Total', freq.total, ''),
         ]
-
+        a = np.array([float(i[2]) for i in result['freq']['languages'] if i[2] != ''])
+        result['freq']['languages_conf'] = st.t.interval(0.95, len(a)-1, loc=np.mean(a), scale=st.sem(a))
+        TOTAL = freq.total
         # TO-DO month, n-th in language
 
         # ------------------ POS ----------------------------------------------------------
@@ -149,108 +157,85 @@ def search(word):
             for key in sorted(pos,
                               key=lambda x: sum(grammar_idxs_full[grammar_idxs_id_lgp_reverse[k]].totalcount for k in pos[x]),
                               reverse=True)
+            if sum(grammar_idxs_full[grammar_idxs_id_lgp_reverse[key]].totalcount for key in pos[key]) > TOTAL/100
         }
 
-        head_rel = {
-            pos: RelationPairs.query.filter(RelationPairs.id_head.in_(
-                [i['lgf'].id for i in result['grammars'][pos]])
-            ).with_entities(RelationPairs.id_head, RelationPairs.id_relation, RelationPairs.id_dependent)
-            for pos in result['grammars']
-            }
-        #print('head_rel |||', head_rel)
-        relations = {
-            pos: head_rel[pos].with_entities(
-                RelationPairs.id_relation,
-                    func.sum(RelationPairs.total_count)
-                ).group_by(
-                    RelationPairs.id_relation
-                ).having(
-                    func.sum(RelationPairs.total_count) > 100
-                ).order_by(
-                    desc(func.sum(RelationPairs.total_count))
-                ).all()
-            for pos in head_rel
-        }
+        head_rel = RelationPairs.query.filter_by(id_head=result['idx'].id)
+        relations = head_rel.with_entities(
+                        RelationPairs.id_relation,
+                        func.sum(RelationPairs.total_count)
+                    ).group_by(
+                        RelationPairs.id_relation
+                    ).having(
+                        func.sum(RelationPairs.total_count) > TOTAL/100
+                    ).order_by(
+                        desc(func.sum(RelationPairs.total_count))
+                    ).all()
         #print('relations |||', relations)
         head_res = [
-            [pos,
-                [
-                    [
-                        RELATIONS[i[0]],
-                         i[1],
-                         [
-                            (Lemmas.query.filter_by(id=j[0]).one_or_none(), j[2])
-                            for j in head_rel[pos].filter_by(
+                        [
+                            RELATIONS[i[0]],
+                             i[1],
+                             [
+                                (Lemmas.query.filter_by(id=j[0]).one_or_none(),
+                                 j[2], round(j[3], 1), round(j[4], 1), round(j[5], 1))
+                                for j in head_rel.filter_by(
                                          id_relation=i[0]
                                     ).with_entities(
                                         RelationPairs.id_dependent,
                                         RelationPairs.id_relation,
-                                        func.sum(RelationPairs.total_count)
-                                    ).group_by(
-                                     RelationPairs.id_dependent, RelationPairs.id_relation
-                                    ).having(
-                                        func.sum(RelationPairs.total_count) > 25
+                                        RelationPairs.total_count,
+                                        RelationPairs.tscore,
+                                        RelationPairs.mi,
+                                        RelationPairs.logdice
+                                    ).filter(
+                                        RelationPairs.total_count > max(25, i[1]/100)
                                     ).order_by(
-                                        desc(func.sum(RelationPairs.total_count))
+                                        desc(RelationPairs.logdice)
                                     ).limit(25).all()
+                            ]
                         ]
-                    ]
-                    for i in relations[pos]
+                    for i in relations
                 ]
-            ]
-            for pos in sorted(relations, key=lambda x: sum(item[1] for item in relations[x]), reverse=True)
-        ]
         #print(head_res)
         result['head'] = head_res
 
-        dep_rel = {
-            pos: RelationPairs.query.filter(RelationPairs.id_dependent.in_(
-                [i['lgf'].id for i in result['grammars'][pos]])
-            ).with_entities(RelationPairs.id_dependent, RelationPairs.id_relation, RelationPairs.id_head)
-            for pos in result['grammars']
-        }
-        # print('head_rel |||', head_rel)
-        relations = {
-            pos: dep_rel[pos].with_entities(
-                RelationPairs.id_relation,
-                func.sum(RelationPairs.total_count)
-            ).group_by(
-                RelationPairs.id_relation
-            ).having(
-                func.sum(RelationPairs.total_count) > 100
-            ).order_by(
-                desc(func.sum(RelationPairs.total_count))
-            ).all()
-            for pos in dep_rel
-        }
+        dep_rel = RelationPairs.query.filter_by(id_dependent=result['idx'].id)
+        relations = dep_rel.with_entities(
+            RelationPairs.id_relation,
+            func.sum(RelationPairs.total_count)
+        ).group_by(
+            RelationPairs.id_relation
+        ).having(
+            func.sum(RelationPairs.total_count) > TOTAL / 100
+        ).order_by(
+            desc(func.sum(RelationPairs.total_count))
+        ).all()
         # print('relations |||', relations)
         dep_res = [
-            [pos,
-             [
-                 [
-                     RELATIONS[i[0]],
-                     i[1],
-                     [
-                         (Lemmas.query.filter_by(id=j[0]).one_or_none(), j[2])
-                         for j in dep_rel[pos].filter_by(
-                         id_relation=i[0]
-                     ).with_entities(
-                         RelationPairs.id_head,
-                         RelationPairs.id_relation,
-                         func.sum(RelationPairs.total_count)
-                     ).group_by(
-                         RelationPairs.id_head, RelationPairs.id_relation
-                     ).having(
-                         func.sum(RelationPairs.total_count) > 25
-                     ).order_by(
-                         desc(func.sum(RelationPairs.total_count))
-                     ).limit(25).all()
-                     ]
-                 ]
-                 for i in relations[pos]
-             ]
-             ]
-            for pos in sorted(relations, key=lambda x: sum(item[1] for item in relations[x]), reverse=True)
+            [
+                RELATIONS[i[0]],
+                i[1],
+                [
+                    (Lemmas.query.filter_by(id=j[0]).one_or_none(),
+                     j[2], round(j[3], 1), round(j[4], 1), round(j[5], 1))
+                    for j in dep_rel.filter_by(
+                        id_relation=i[0]
+                    ).with_entities(
+                        RelationPairs.id_head,
+                        RelationPairs.id_relation,
+                        RelationPairs.total_count,
+                        RelationPairs.tscore,
+                        RelationPairs.mi,
+                        RelationPairs.logdice
+                    ).filter(
+                        RelationPairs.total_count > max(25, i[1] / 100)
+                    ).order_by(
+                        desc(RelationPairs.logdice)
+                    ).limit(25).all()
+                ]
+            ]
+            for i in relations
         ]
         # print(head_res)
         result['dep'] = dep_res

@@ -101,7 +101,10 @@ class RelationPairs(db.Model):
     id_head = db.Column('id_head', db.Integer, back_populates="lemmas")
     id_dependent = db.Column('id_dependent', db.Integer, back_populates="lemmas")
     id_relation = db.Column('id_relation', db.Integer, back_populates="relations")
-    total_count = db.Column('total_count', db.Integer, back_populates="relations")
+    total_count = db.Column('total_count', db.Integer)
+    tscore = db.Column('tscore', db.Float)
+    mi = db.Column('mi', db.Float)
+    logdice = db.Column('logdice', db.Float)
 
 
 class ExamplesBi(db.Model):

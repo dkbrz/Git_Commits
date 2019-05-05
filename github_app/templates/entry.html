@@ -10,7 +10,7 @@
     });
 </script>
 <style>
-a{color: #008000;}
+a{color:  midnightblue;}
 div.main{
 	margin-left: 200px;
 	margin-top: 22px;
@@ -22,6 +22,7 @@ div.main{
 .labels{
 	font-size: 25px;
 	font-weight: bold;
+    margin: 20px;
 }
 td, th{
     text-align: left;
@@ -30,124 +31,137 @@ td, th{
 tr.rel:nth-child(even) {background-color: #f2f2f2;}
 .spoiler_body {display:none; padding: 20px;}
 .spoiler_links {cursor:pointer;}
+
+.type{background-color: darkorange;font-size: 25px;font-weight: bold; margin: 20px;}
+tr.localth{color:rebeccapurple}
 </style>
 <div class="main text">
     {{ result['idx'].id }} {{ result['idx'].lemma }}
-    <table>
-        <tr>
-            <th> Language </th>
-            <th> TotalCount </th>
-            <th> IPM </th>
-        </tr>
-        {% for item in result['freq']['languages'] %}
+    <div class="row">
+        <table class="col-md-2" style="margin-right: 30px">
             <tr>
-                <td>{{ item[0] }}</td>
-                <td>{{ item[1] }}</td>
-                <td>{{ item[2] }}</td>
+                <th>#</th>
+                <th>Word</th>
+                <th>Score</th>
             </tr>
-        {% endfor %}
-    </table>
-    <br><br>
-    <table>
-        <tr>
-            <th>POS</th>
-            <th>Grammar</th>
-        </tr>
-        {% for pos in result['grammars'] %}
+            {% for pair in result['neighbours'] %}
+                <tr>
+                    <td>#{{ pair[0].id }}</td>
+                    <td><a href="{{prefix}}/entry?word={{pair[0].lemma}}">{{ pair[0].lemma }}</a></td>
+                    <td>{{ '%0.2f' % pair[1]|float }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        <table class="col-md-4">
             <tr>
-                <td>{{ pos }}</td>
-                <td>
-                    {% for item in result['grammars'][pos] %}
-                        {{ item['grammar'].string_format }}, {{ item['lgf'].totalcount }} <br>
-                    {% endfor %}
-                </td>
+                <th> Language </th>
+                <th> TotalCount </th>
+                <th> IPM </th>
             </tr>
-        {% endfor %}
-    </table>
-    <br><br>
-    <table class="col-md-12">
-        <colgroup>
-            <col style="width:10%">
-            <col style="width:90%">
-        </colgroup>
-        <tr>
-            <th> POS </th>
-            <th> Usage </th>
-        </tr>
-        {% for pos_block in result['head'] if pos_block %}
-            <tr class="rel">
-                <td>{{ pos_block[0] }}</td>
-                <td>
-                    <div class="row">
-                        <table class="col-md-12">
-                        <colgroup>
-                            <col style="width:10%">
-                            <col style="width:10%">
-                            <col style="width:80%">
-                        </colgroup>
-                            {% for relation in pos_block[1] if relation %}
-                            <tr class="rel">
-                                <td>
-                                    {{ relation[0] }}
-                                </td>
-                                <td>
-                                    {{ relation[1] }}
-                                </td>
-                                <td>
-                                    {% for word in relation[2] %}
-                                        {{ word[0].lemma }}, {{ word[1] }};
-                                    {% endfor %}
-                                </td>
+            {% for item in result['freq']['languages'][:-1] %}
+                <tr>
+                    <td>{{ item[0] }}</td>
+                    <td>{{ item[1] }}</td>
+                    {% if item[2] > result['freq']['languages_conf'][1] %}
+                        <td style="color: green">{{ '%0.2f' % item[2]|float }}</td>
+                    {% elif item[2] < result['freq']['languages_conf'][0] %}
+                        <td style="color: red">{{ '%0.2f' % item[2]|float }}</td>
+                    {% else %}
+                        <td>{{ '%0.2f' % item[2]|float }}</td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+            <tr>
+                <td>{{ result['freq']['languages'][-1][0] }}</td>
+                <td>{{ result['freq']['languages'][-1][1] }}</td>
+                <td>{{ result['freq']['languages'][-1][2] }}</td>
+            </tr>
+        </table>
+        <table class="col-md-5">
+            <tr>
+                <th>POS</th>
+                <th>Grammar</th>
+            </tr>
+            {% for pos in result['grammars'] %}
+                <tr>
+                    <td>{{ pos }}</td>
+                    <td>
+                        {% for item in result['grammars'][pos] %}
+                            {{ item['grammar'].string_format }}, {{ item['lgf'].totalcount }} <br>
+                        {% endfor %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <label class="labels type">As head</label>
+    <div class="row">
+        {% for pic_batch in result['head']|batch(3) %}
+            <div class="row">
+            {% for relation in pic_batch if relation %}
+                <div class="col-md-4">
+                    <table style="width: 100%">
+                        <tr style="background-color: mediumspringgreen">
+                            <th>{{ relation[0] }}</th>
+                            <th>{{ relation[1] }}</th>
+                        </tr>
+                        <tr class="localth">
+                            <td>Word</td>
+                            <td>Count</td>
+                            <td>T-score</td>
+                            <td>MI</td>
+                            <td>LogDice</td>
+                        </tr>
+                        {% for word in relation[2] %}
+                            <tr>
+                                <td>{{ word[0].lemma }}</td>
+                                <td>{{ word[1] }}</td>
+                                <td>{{ word[2] }}</td>
+                                <td>{{ word[3] }}</td>
+                                <td>{{ word[4] }}</td>
                             </tr>
                         {% endfor %}
-                        </table>
-                    </div>
-                </td>
-            </tr>
+                    </table>
+                </div>
+            {% endfor %}
+            </div>
         {% endfor %}
-    </table>
-    <br><br>
-    <table class="col-md-12">
-        <colgroup>
-            <col style="width:10%">
-            <col style="width:90%">
-        </colgroup>
-        <tr>
-            <th> POS </th>
-            <th> Usage </th>
-        </tr>
-        {% for pos_block in result['dep'] if pos_block %}
-            <tr class="rel">
-                <td>{{ pos_block[0] }}</td>
-                <td>
-                    <div class="row">
-                        <table class="col-md-12">
-                        <colgroup>
-                            <col style="width:10%">
-                            <col style="width:10%">
-                            <col style="width:80%">
-                        </colgroup>
-                            {% for relation in pos_block[1] if relation %}
-                            <tr class="rel">
-                                <td>
-                                    {{ relation[0] }}
-                                </td>
-                                <td>
-                                    {{ relation[1] }}
-                                </td>
-                                <td>
-                                    {% for word in relation[2] %}
-                                        {{ word[0].lemma }}, {{ word[1] }};
-                                    {% endfor %}
-                                </td>
+    </div>
+
+    <label class="labels type">As dependent</label>
+    <div class="row">
+        {% for pic_batch in result['dep']|batch(3) %}
+            <div class="row">
+            {% for relation in pic_batch if relation %}
+                <div class="col-md-4">
+                    <table style="width: 100%">
+                        <tr style="background-color: mediumspringgreen">
+                            <th>{{ relation[0] }}</th>
+                            <th>{{ relation[1] }}</th>
+                        </tr>
+                        <tr class="localth">
+                            <td>Word</td>
+                            <td>Count</td>
+                            <td>T-score</td>
+                            <td>MI</td>
+                            <td>LogDice</td>
+                        </tr>
+                        {% for word in relation[2] %}
+                            <tr>
+                                <td>{{ word[0].lemma }}</td>
+                                <td>{{ word[1] }}</td>
+                                <td>{{ word[2] }}</td>
+                                <td>{{ word[3] }}</td>
+                                <td>{{ word[4] }}</td>
                             </tr>
                         {% endfor %}
-                        </table>
-                    </div>
-                </td>
-            </tr>
+                    </table>
+                </div>
+            {% endfor %}
+            </div>
         {% endfor %}
-    </table>
+    </div>
 
 </div>
 
