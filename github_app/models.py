@@ -18,7 +18,7 @@ class Frequency(db.Model):
     __tablename__ = 'frequency_dict'
 
     id_lemma = db.Column('id_lemma', db.Integer, db.ForeignKey('lemmas.id'),
-                primary_key=True, autoincrement=True, back_populates="lemmas")
+                         primary_key=True, autoincrement=True)
     c = db.Column('c', db.Integer)
     csh = db.Column('csh', db.Integer)
     cpp = db.Column('cpp', db.Integer)
@@ -42,7 +42,7 @@ class Grammar(db.Model):
     __tablename__ = 'grammar'
 
     id = db.Column('id', db.Integer,
-                   primary_key=True, autoincrement=True, back_populates="lemma_grammar_pairs")
+                   primary_key=True, autoincrement=True)
     string_format = db.Column('string_format', db.Text)
     pos = db.Column('pos', db.Text)
 
@@ -78,7 +78,7 @@ class LGP(db.Model):
     __tablename__ = 'lemma_grammar_pairs'
 
     id = db.Column('id', db.Integer,
-                         primary_key=True, autoincrement=True)
+                   primary_key=True, autoincrement=True)
     id_lemma = db.Column('id_lemma', db.Integer)
     id_grammar = db.Column('id_grammar', db.Integer, db.ForeignKey('grammar.id'))
     form = db.Column('form', db.Text)
@@ -90,7 +90,7 @@ class Lemmas(db.Model):
     __tablename__ = 'lemmas'
 
     id = db.Column('id', db.Integer,
-                         primary_key=True, autoincrement=True, back_populates="frequency_dict")
+                   primary_key=True, autoincrement=True)
     lemma = db.Column('lemma', db.Text)
 
 
@@ -98,9 +98,9 @@ class RelationPairs(db.Model):
     __tablename__ = 'aggr_rel_pairs'
 
     id = db.Column('id', db.Integer,primary_key=True, autoincrement=True)
-    id_head = db.Column('id_head', db.Integer, back_populates="lemmas")
-    id_dependent = db.Column('id_dependent', db.Integer, back_populates="lemmas")
-    id_relation = db.Column('id_relation', db.Integer, back_populates="relations")
+    id_head = db.Column('id_head', db.Integer)
+    id_dependent = db.Column('id_dependent', db.Integer)
+    id_relation = db.Column('id_relation', db.Integer)
     total_count = db.Column('total_count', db.Integer)
     tscore = db.Column('tscore', db.Float)
     mi = db.Column('mi', db.Float)
@@ -111,15 +111,15 @@ class ExamplesBi(db.Model):
     __tablename__ = 'relation_pair'
 
     id = db.Column('id', db.Integer,primary_key=True, autoincrement=True)
-    id_relation = db.Column('id_relation', db.Integer, back_populates="relations")
-    id_example = db.Column('id_example', db.Integer, back_populates="examples")
+    id_relation = db.Column('id_relation', db.Integer)
+    id_example = db.Column('id_example', db.Integer)
     idx_diff = db.Column('idx_diff', db.Integer)
 
 
 class Relations(db.Model):
     __tablename__ = 'relations'
 
-    id = db.Column('id', db.Integer,primary_key=True, autoincrement=True,)
+    id = db.Column('id', db.Integer, primary_key=True, autoincrement=True,)
     relation_name = db.Column('relation_name', db.Text)
 
 
